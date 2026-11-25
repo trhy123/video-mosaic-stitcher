@@ -6,7 +6,13 @@ Arrange multiple videos in an equal-sized grid with configurable layout, duratio
 
 ## 下载与依赖
 
-从 [Releases](https://github.com/trhy123/video-mosaic-stitcher/releases) 下载对应平台的构建：Windows x86 或 x64、Linux x86-64、macOS Apple Silicon 或 Intel。解压后运行 `VideoMosaic`；macOS 运行 `VideoMosaic.app`。macOS 构建未经过 Apple 公证，首次打开可能需要在系统设置中允许。
+从 [Releases](https://github.com/trhy123/video-mosaic-stitcher/releases) 下载并解压 ZIP。发行包自带 Python 和图形界面依赖。
+
+| 平台 | 解压后启动 |
+| --- | --- |
+| Windows x86 / x64 | 双击 `VideoMosaic.exe` |
+| Linux x64 | 在解压目录中运行 `./VideoMosaic`。这是无扩展名的可执行文件 |
+| macOS Apple Silicon / Intel | 双击 `VideoMosaic.app`。应用未经 Apple 公证，首次打开可能需要在系统设置中允许 |
 
 **必须单独安装 `ffmpeg` 和 `ffprobe`。**程序分别按以下顺序查找每个可执行文件：
 
@@ -15,6 +21,18 @@ Arrange multiple videos in an equal-sized grid with configurable layout, duratio
 3. 系统环境变量 `PATH`。
 
 macOS `.app` 也会查找应用包所在目录及其 `bin`。FFmpeg 必须编译包含所选的 `libx264` 或 `libx265` 编码器。输入格式取决于 FFmpeg 支持的格式，输出为无音轨的 MP4。
+
+## 直接运行源码
+
+从仓库下载源码 ZIP 并解压，或使用 `git clone https://github.com/trhy123/video-mosaic-stitcher.git`。安装 Python 3.10 或更新版本和 Tkinter，并按上文准备 `ffmpeg`、`ffprobe`。在源码目录运行以下命令。Linux 和 macOS 若使用 `python3`，将命令中的 `python` 换成 `python3`。
+
+```sh
+python -m tkinter
+python -m pip install -r requirements.txt
+python video_mosaic.py
+```
+
+第一条命令会打开 Tk 测试窗口，关闭后再执行后两条。Ubuntu / Debian 缺少 Tkinter 时可安装 `python3-tk`。Windows 装好依赖后也可以双击 `start-windows.bat`。命令行用法见 `python video_mosaic.py --help`。
 
 ## 使用
 
@@ -28,28 +46,17 @@ macOS `.app` 也会查找应用包所在目录及其 `bin`。FFmpeg 必须编译
 
 CRF 模式控制质量，不限定文件大小；“试编码估算大小”使用短片段和较快参数，只能粗略参考。目标大小模式按所选时长计算平均码率并编码两遍，预留封装余量；实际大小可能偏离目标，不会截断或自动重试。每次添加、移除、清空或调整输入顺序时，目标大小会按输入总大小重新计算为整数 MB（1 MB = 1,048,576 字节，有输入时至少为 1 MB）。
 
-## 从源码运行
-
-需要 Python 3.10 或更新版本、Tkinter、`tkinterdnd2`、`ffmpeg` 和 `ffprobe`。安装依赖后运行：
-
-```sh
-python -m pip install -r requirements.txt
-python video_mosaic.py
-```
-
-Windows 也可运行 `start-windows.bat`。有些 Linux 发行版需要单独安装系统的 Tkinter 软件包。可运行 `python video_mosaic.py --help` 查看命令行选项。
-
 ## 构建
 
-使用目标操作系统和对应架构的 Python 构建：
+使用目标操作系统和对应架构的 Python 构建。Linux 还需要 binutils 提供的 `strip`，macOS 需要 Xcode Command Line Tools。
 
 ```sh
 python -m pip install -r requirements-build.txt
-python -m PyInstaller --noconfirm --clean --windowed --onedir --name VideoMosaic --additional-hooks-dir hooks video_mosaic.py
+python packaging/build.py
 ```
 
-构建结果位于 `dist/`；macOS 图形应用为 `dist/VideoMosaic.app`。打包程序包含 Python 和 TkDND，不包含 `ffmpeg`、`ffprobe`。运行 `python -m unittest discover -s tests -v` 可执行测试；涉及视频编码的测试需要 FFmpeg。发布 Release 时 GitHub Actions 会构建上述五个平台版本。
+构建结果位于 `dist/`，macOS 图形应用为 `dist/VideoMosaic.app`。运行 `python -m unittest discover -s tests -v` 可执行测试，视频编码测试需要 FFmpeg。发布 Release 时 GitHub Actions 会构建上述五个平台版本。
 
 ## 许可证
 
-本项目使用 [MIT 许可证](LICENSE)。第三方组件适用各自的许可证，详见 `third-party/`。
+本项目使用 [MIT 许可证](License/MIT.txt)。项目及第三方组件的许可文件均位于 `License/`。
