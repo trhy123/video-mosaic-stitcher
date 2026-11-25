@@ -138,8 +138,7 @@ def resolve_dimensions(fields, order, rows, cols):
 
 
 def probe(path):
-    cmd = [executable('ffprobe'), '-v', 'error', '-show_entries',
-           'stream=index,codec_type,codec_name,width,height,duration,avg_frame_rate,nb_frames,sample_aspect_ratio,bit_rate:stream_tags=rotate:stream_side_data=rotation:format=duration,bit_rate,format_name',
+    cmd = [executable('ffprobe'), '-v', 'error', '-show_streams', '-show_format',
            '-of', 'json', str(path)]
     result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='replace', creationflags=NO_WINDOW)
     if result.returncode:

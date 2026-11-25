@@ -1,3 +1,4 @@
+import json
 import os
 from pathlib import Path
 import shutil
@@ -6,6 +7,7 @@ import sys
 import tempfile
 import unittest
 from unittest.mock import patch
+from types import SimpleNamespace
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import video_mosaic as mosaic
@@ -69,6 +71,18 @@ class DimensionTests(unittest.TestCase):
 
 @unittest.skipUnless(ffmpeg_with_x264(), 'FFmpeg with libx264 and ffprobe is required')
 class LoopTests(unittest.TestCase):
+    def test_probe_reads_rotation_metadata(self):
+        with tempfile.TemporaryDirectory() as folder:
+            video = Path(folder) / 'rotated.mp4'
+            video.touch()
+            data = {'streams': [{'codec_type': 'video', 'width': 64, 'height': 32,
+                                 'duration': '1', 'avg_frame_rate': '5/1',
+                                 'side_data_list': [{'rotation': 90}]}]}
+            result = SimpleNamespace(returncode=0, stdout=json.dumps(data), stderr='')
+            with patch.object(mosaic.subprocess, 'run', return_value=result):
+                info = mosaic.probe(video)
+            self.assertEqual((info['width'], info['height']), (32, 64))
+
     def test_shorter_video_repeats_until_longest_finishes(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
