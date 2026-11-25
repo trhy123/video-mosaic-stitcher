@@ -19,23 +19,23 @@ jobs:
           - name: Windows x86
             os: windows-2022
             python_arch: x86
-            asset: windows-x86
+            asset: win_x86
           - name: Windows x64
             os: windows-2022
             python_arch: x64
-            asset: windows-x64
+            asset: win_x64
           - name: Linux x86-64
             os: ubuntu-22.04
             python_arch: x64
-            asset: linux-x86_64
+            asset: linux_x64
           - name: macOS Apple Silicon
             os: macos-15
             python_arch: arm64
-            asset: macos-arm64
+            asset: macos_arm64
           - name: macOS Intel
             os: macos-15-intel
             python_arch: x64
-            asset: macos-x86_64
+            asset: macos_x64
     env:
       VERSION_TAG: ${{ github.event.release.tag_name || 'preflight' }}
       GH_TOKEN: ${{ github.token }}
@@ -49,7 +49,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y ffmpeg python3-tk xvfb xauth
+          sudo apt-get install -y ffmpeg python3-tk xvfb xauth zip
       - name: Install build dependencies
         run: python -m pip install -r requirements-build.txt
       - name: Test source
@@ -62,36 +62,38 @@ jobs:
         run: |
           $process = Start-Process -FilePath 'dist/VideoMosaic/VideoMosaic.exe' -ArgumentList '--self-test' -WindowStyle Hidden -Wait -PassThru
           if ($process.ExitCode -ne 0) { throw "Application self-test failed: $($process.ExitCode)" }
+          $version = $env:VERSION_TAG -replace '^v', ''
+          $folder = "VideoMosaic_${version}_${{ matrix.asset }}"
           Copy-Item -LiteralPath 'README.md' -Destination 'dist/VideoMosaic/README.md'
+          Copy-Item -LiteralPath 'LICENSE' -Destination 'dist/VideoMosaic/LICENSE'
           Copy-Item -LiteralPath 'third-party' -Destination 'dist/VideoMosaic/third-party' -Recurse
+          Move-Item -LiteralPath 'dist/VideoMosaic' -Destination "dist/$folder"
           New-Item -ItemType Directory -Path 'release-assets' -Force | Out-Null
-          Compress-Archive -LiteralPath 'dist/VideoMosaic' -DestinationPath "release-assets/VideoMosaic-$env:VERSION_TAG-${{ matrix.asset }}.zip"
+          Compress-Archive -LiteralPath "dist/$folder" -DestinationPath "release-assets/$folder.zip"
       - name: Test Linux application and package
         if: runner.os == 'Linux'
         shell: bash
         run: |
           xvfb-run -a ./dist/VideoMosaic/VideoMosaic --self-test
-          cp README.md dist/VideoMosaic/README.md
+          version="${VERSION_TAG#v}"
+          folder="VideoMosaic_${version}_${{ matrix.asset }}"
+          cp README.md LICENSE dist/VideoMosaic/
           cp -R third-party dist/VideoMosaic/third-party
           mkdir -p release-assets
-          tar -czf "release-assets/VideoMosaic-${VERSION_TAG}-${{ matrix.asset }}.tar.gz" -C dist VideoMosaic
+          mv dist/VideoMosaic "dist/$folder"
+          (cd dist && zip -qry "../release-assets/$folder.zip" "$folder")
       - name: Test macOS application and package
         if: runner.os == 'macOS'
         shell: bash
         run: |
           ./dist/VideoMosaic.app/Contents/MacOS/VideoMosaic --self-test
-          mkdir -p release-assets release-stage/VideoMosaic
-          ditto dist/VideoMosaic.app release-stage/VideoMosaic/VideoMosaic.app
-          cp README.md release-stage/VideoMosaic/README.md
-          cp -R third-party release-stage/VideoMosaic/third-party
-          ditto -c -k --sequesterRsrc --keepParent release-stage/VideoMosaic "release-assets/VideoMosaic-${VERSION_TAG}-${{ matrix.asset }}.zip"
-      - name: Save workflow artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: VideoMosaic-${{ matrix.asset }}
-          path: release-assets/*
-          if-no-files-found: error
-          retention-days: 7
+          version="${VERSION_TAG#v}"
+          folder="VideoMosaic_${version}_${{ matrix.asset }}"
+          mkdir -p release-assets "release-stage/$folder"
+          ditto dist/VideoMosaic.app "release-stage/$folder/VideoMosaic.app"
+          cp README.md LICENSE "release-stage/$folder/"
+          cp -R third-party "release-stage/$folder/third-party"
+          ditto -c -k --sequesterRsrc --keepParent "release-stage/$folder" "release-assets/$folder.zip"
       - name: Attach release asset
         if: github.event_name == 'release'
         shell: bash

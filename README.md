@@ -49,3 +49,7 @@ python -m PyInstaller --noconfirm --clean --windowed --onedir --name VideoMosaic
 ```
 
 构建结果位于 `dist/`；macOS 图形应用为 `dist/VideoMosaic.app`。打包程序包含 Python 和 TkDND，不包含 `ffmpeg`、`ffprobe`。运行 `python -m unittest discover -s tests -v` 可执行测试；涉及视频编码的测试需要 FFmpeg。发布 Release 时 GitHub Actions 会构建上述五个平台版本。
+
+## 许可证
+
+本项目使用 [MIT 许可证](LICENSE)。第三方组件适用各自的许可证，详见 `third-party/`。
