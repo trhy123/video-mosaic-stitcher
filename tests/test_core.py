@@ -118,11 +118,22 @@ class LoopTests(unittest.TestCase):
                     continue
                 output = root / (encoder + '-target.mp4')
                 logs = []
-                mosaic.compose([short, long], output, 1, 2, encoder, 'ultrafast', 23,
-                               '#000000', 'loop', log=logs.append, target_mb=0.1)
+                actual_run = subprocess.run
+                stats_seen = []
+                def check_stats(command, *args, **kwargs):
+                    if 'pass=2:stats=stats.x265' in command:
+                        stats = Path(kwargs['cwd']) / 'stats.x265'
+                        self.assertGreater(stats.stat().st_size, 0)
+                        stats_seen.append(True)
+                    return actual_run(command, *args, **kwargs)
+                with patch.object(mosaic.subprocess, 'run', side_effect=check_stats):
+                    mosaic.compose([short, long], output, 1, 2, encoder, 'ultrafast', 23,
+                                   '#000000', 'loop', log=logs.append, target_mb=0.1)
                 self.assertAlmostEqual(mosaic.probe(output)['duration'], 3.0, delta=0.05)
                 self.assertTrue(any('第 1/2' in line for line in logs))
                 self.assertTrue(any('第 2/2' in line for line in logs))
+                if encoder == 'libx265':
+                    self.assertEqual(stats_seen, [True])
 
 
 if __name__ == '__main__':

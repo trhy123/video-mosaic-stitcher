@@ -268,9 +268,9 @@ def compose(paths, output, rows, cols, encoder, preset, crf, color, duration_mod
             cmd += ['-profile:v', profile]
         if tune:
             cmd += ['-tune', tune]
-        def run_ffmpeg(command, stage):
+        def run_ffmpeg(command, stage, cwd=None):
             result = subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True,
-                                    encoding='utf-8', errors='replace', creationflags=NO_WINDOW)
+                                    encoding='utf-8', errors='replace', creationflags=NO_WINDOW, cwd=cwd)
             if result.returncode:
                 raise RuntimeError(f'FFmpeg {stage}失败：\n' + result.stderr[-5000:])
         if target_mb is None:
@@ -279,14 +279,19 @@ def compose(paths, output, rows, cols, encoder, preset, crf, color, duration_mod
         else:
             log(f'目标 {format_size(target_bytes)}，预留封装开销后目标平均视频码率 {bitrate_kbps:,} kb/s；实际大小可能偏离目标。')
             with tempfile.TemporaryDirectory(prefix='mosaic-pass-') as stats_dir:
-                stats = str(Path(stats_dir) / 'stats')
-                common = cmd + ['-b:v', f'{bitrate_kbps}k', '-passlogfile', stats]
+                common = cmd + ['-b:v', f'{bitrate_kbps}k']
                 if encoder == 'libx265':
-                    common += ['-x265-stats', stats + '.x265']
+                    # Relative stats name avoids x265's colon-separated option parser
+                    # misreading Windows drive letters; use the same cwd in both passes.
+                    pass1 = ['-x265-params', 'pass=1:stats=stats.x265']
+                    pass2 = ['-x265-params', 'pass=2:stats=stats.x265']
+                else:
+                    common += ['-passlogfile', str(Path(stats_dir) / 'stats')]
+                    pass1, pass2 = ['-pass', '1'], ['-pass', '2']
                 log('正在进行第 1/2 遍：分析视频……')
-                run_ffmpeg(common + ['-pass', '1', '-f', 'null', os.devnull], '第一遍')
+                run_ffmpeg(common + pass1 + ['-f', 'null', os.devnull], '第一遍', cwd=stats_dir)
                 log('正在进行第 2/2 遍：生成视频……')
-                run_ffmpeg(common + ['-pass', '2', '-movflags', '+faststart', temp], '第二遍')
+                run_ffmpeg(common + pass2 + ['-movflags', '+faststart', temp], '第二遍', cwd=stats_dir)
         size = os.path.getsize(temp)
         if sample_seconds:
             estimated = round(size * duration / run_duration)
